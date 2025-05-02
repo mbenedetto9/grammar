@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Grammar Practice</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 20px;
+    }
+    .sentence {
+      line-height: 2;
+      cursor: pointer;
+    }
+    .word {
+      padding: 4px;
+      display: inline-block;
+    }
+    .selected {
+      background-color: #ffeb3b;
+    }
+    #feedback {
+      margin-top: 20px;
+    }
+    button {
+      margin-top: 10px;
+    }
+    #topicSelector, #questionSelector {
+      margin-bottom: 10px;
+    }
+    #editor {
+      margin-top: 40px;
+      border-top: 1px solid #ccc;
+      padding-top: 20px;
+    }
+    textarea {
+      width: 100%;
+      height: 60px;
+    }
+    label, input, select {
+      display: block;
+      margin: 5px 0;
+    }
+    .tools {
+      margin-top: 20px;
+    }
+    #tokenDebug, #tokenPreview {
+      font-family: monospace;
+      margin-top: 10px;
+      color: #555;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h2>Click the word or punctuation you think is incorrect</h2>
+  <label for="topicSelector">Choose a topic:</label>
+  <select id="topicSelector"></select>
+  <label for="questionSelector">Choose a question:</label>
+  <select id="questionSelector"></select>
+
+  <div id="sentence" class="sentence"></div>
+  <button onclick="checkAnswer()">Check Answer</button>
+  <div id="feedback"></div>
+  <pre id="tokenDebug"></pre>
+
+  <div id="editor">
+    <h3>Add a New Question</h3>
+    <label for="newTopic">Topic:</label>
+    <input type="text" id="newTopic">
+    <label for="newText">Sentence:</label>
+    <textarea id="newText" oninput="previewTokens()"></textarea>
+    <label for="newIndex">Index of Incorrect Word (starting from 0):</label>
+    <input type="number" id="newIndex" />
+    <pre id="tokenPreview"></pre>
+    <button onclick="addQuestion()">Add Question</button>
+
+    <div class="tools">
+      <h3>Import / Export Questions</h3>
+      <input type="file" id="importFile" accept="application/json" />
+      <button onclick="importQuestions()">Import Questions</button>
+      <button onclick="exportQuestions()">Export Questions</button>
+    </div>
+  </div>
+
+  <script>
+    let questions = [
+      {
+        topic: "Pronouns",
+        text: "Everyone should bring their own pencil.",
+        incorrectIndex: 4
+      },
+      {
+        topic: "Punctuation",
+        text: "I need milk eggs and bread.",
+        incorrectIndex: 3
+      },
+      {
+        topic: "Subject-Verb Agreement",
+        text: "Neither the teacher nor the students was ready for the test.",
+        incorrectIndex: 7
+      }
+    ];
+
+    const topicSelector = document.getElementById("topicSelector");
+    const questionSelector = document.getElementById("questionSelector");
+    const sentenceDiv = document.getElementById("sentence");
+    const feedbackDiv = document.getElementById("feedback");
+    const tokenDebug = document.getElementById("tokenDebug");
+    const tokenPreview = document.getElementById("tokenPreview");
+
+    function tokenize(sentence) {
+      return sentence.match(/\w+('\w+)?|[.,!?;:"]+/g);
+    }
+
+    function getTopics() {
+      const unique = [...new Set(questions.map(q => q.topic))];
+      return unique.sort();
+    }
+
+    function populateTopics() {
+      topicSelector.innerHTML = "";
+      getTopics().forEach(topic => {
+        const option = document.createElement("option");
+        option.value = topic;
+        option.textContent = topic;
+        topicSelector.appendChild(option);
+      });
+      loadQuestionsForTopic(topicSelector.value);
+    }
+
+    function loadQuestionsForTopic(topic) {
+      questionSelector.innerHTML = "";
+      const filtered = questions.filter(q => q.topic === topic);
+      filtered.forEach((q, idx) => {
+        const option = document.createElement("option");
+        option.value = idx;
+        option.textContent = `Question ${idx + 1}`;
+        questionSelector.appendChild(option);
+      });
+      loadQuestion(topic, 0);
+    }
+
+    function loadQuestion(topic, index) {
+      sentenceDiv.innerHTML = "";
+      feedbackDiv.textContent = "";
+      tokenDebug.textContent = "";
+
+      const filtered = questions.filter(q => q.topic === topic);
+      const tokens = tokenize(filtered[index].text);
+
+      tokens.forEach((token, i) => {
+        const span = document.createElement("span");
+        span.textContent = token;
+        span.classList.add("word");
+        span.dataset.index = i;
+        span.addEventListener("click", () => {
+          document.querySelectorAll(".word").forEach(el => el.classList.remove("selected"));
+          span.classList.add("selected");
+        });
+        sentenceDiv.appendChild(span);
+        sentenceDiv.append(" ");
+        tokenDebug.textContent += `${i}: ${token}\n`;
+      });
+    }
+
+    topicSelector.addEventListener("change", () => populateQuestions(topicSelector.value));
+    questionSelector.addEventListener("change", () => loadQuestion(topicSelector.value, parseInt(questionSelector.value)));
+
+    function previewTokens() {
+      const text = document.getElementById("newText").value.trim();
+      const tokens = tokenize(text);
+      tokenPreview.textContent = tokens.map((t, i) => `${i}: ${t}`).join("\n");
+    }
+
+    function checkAnswer() {
+      const selected = document.querySelector(".word.selected");
+      if (!selected) {
+        feedbackDiv.textContent = "Please select a word or punctuation mark.";
+        return;
+      }
+      const topic = topicSelector.value;
+      const index = parseInt(questionSelector.value);
+      const filtered = questions.filter(q => q.topic === topic);
+      const question = filtered[index];
+      const selectedIndex = parseInt(selected.dataset.index);
+      if (selectedIndex === question.incorrectIndex) {
+        feedbackDiv.textContent = "Correct! You found the error.";
+        feedbackDiv.style.color = "green";
+      } else {
+        feedbackDiv.textContent = "Oops! That's not the error. Try again.";
+        feedbackDiv.style.color = "red";
+      }
+    }
+
+    function addQuestion() {
+      const text = document.getElementById("newText").value.trim();
+      const index = parseInt(document.getElementById("newIndex").value);
+      const topic = document.getElementById("newTopic").value.trim();
+      const words = tokenize(text);
+
+      if (!text || isNaN(index) || !topic) {
+        alert("Please provide topic, sentence, and index.");
+        return;
+      }
+      if (index < 0 || index >= words.length) {
+        alert("Index is out of bounds based on the number of words/punctuation in the sentence.");
+        return;
+      }
+      questions.push({ topic, text, incorrectIndex: index });
+      populateTopics();
+      topicSelector.value = topic;
+      loadQuestionsForTopic(topic);
+      document.getElementById("newText").value = "";
+      document.getElementById("newIndex").value = "";
+      document.getElementById("newTopic").value = "";
+      tokenPreview.textContent = "";
+    }
+
+    function exportQuestions() {
+      const blob = new Blob([JSON.stringify(questions, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "grammar-questions.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importQuestions() {
+      const fileInput = document.getElementById("importFile");
+      const file = fileInput.files[0];
+      if (!file) {
+        alert("Please select a file first.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const imported = JSON.parse(event.target.result);
+          if (Array.isArray(imported)) {
+            questions = imported;
+            populateTopics();
+          } else {
+            alert("Invalid format: not an array of questions.");
+          }
+        } catch (e) {
+          alert("Failed to parse the JSON file.");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    populateTopics();
+  </script>
+</body>
+</html>
