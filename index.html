@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Grammar Practice - Student</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f8f9fa;
+    }
+    header {
+      background: #343a40;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+    }
+    main {
+      padding: 1rem;
+      max-width: 700px;
+      margin: auto;
+    }
+    .card {
+      background: white;
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .topic-title {
+      font-weight: bold;
+      font-size: 1.2rem;
+    }
+    .progress-bar-container {
+      background: #e9ecef;
+      border-radius: 5px;
+      overflow: hidden;
+      margin-top: 0.5rem;
+    }
+    .progress-bar {
+      height: 10px;
+      background: #28a745;
+      transition: width 0.3s ease;
+    }
+    button {
+      margin-top: 1rem;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .reset-button {
+      background-color: #dc3545;
+    }
+    .sentence {
+      margin: 1.5rem 0;
+      font-size: 1.2rem;
+    }
+    .word {
+      padding: 4px;
+      margin: 1px;
+      cursor: pointer;
+      display: inline-block;
+    }
+    .selected {
+      background: #ffc107;
+    }
+    .feedback {
+      margin-top: 1rem;
+      font-weight: bold;
+    }
+    canvas#confetti-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 999;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Grammar Practice</h1>
+    <p>Select a topic and test your grammar skills!</p>
+  </header>
+  <canvas id="confetti-canvas"></canvas>
+  <main id="app">Loading...</main>
+
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <script>
+    let questionBank = {
+      "Pronouns": [
+        {
+          "text": "Each of the students have completed their assignments.",
+          "incorrectIndex": 4
+        },
+        {
+          "text": "Everyone should bring their own pencil.",
+          "incorrectIndex": 4
+        }
+      ],
+      "Punctuation": [
+        {
+          "text": "I need milk eggs and bread.",
+          "incorrectIndex": 3
+        }
+      ],
+      "Subject-Verb Agreement": [
+        {
+          "text": "Neither the teacher nor the students was ready for the test.",
+          "incorrectIndex": 7
+        }
+      ]
+    };
+
+    const app = document.getElementById("app");
+    const confettiCanvas = document.getElementById("confetti-canvas");
+    const confettiLauncher = confetti.create(confettiCanvas, { resize: true });
+
+    function getProgress() {
+      return JSON.parse(localStorage.getItem("grammarProgress") || "{}");
+    }
+
+    function saveProgress(progress) {
+      localStorage.setItem("grammarProgress", JSON.stringify(progress));
+    }
+
+    function resetProgress() {
+      if (confirm("Are you sure you want to reset all progress?")) {
+        localStorage.removeItem("grammarProgress");
+        renderDashboard();
+      }
+    }
+
+    function renderDashboard() {
+      const progress = getProgress();
+      app.innerHTML = "<h2>Your Progress</h2>";
+
+      Object.keys(questionBank).forEach(topic => {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        const completed = progress[topic]?.completed || 0;
+        const total = questionBank[topic].length;
+        const percent = Math.round((completed / total) * 100);
+
+        card.innerHTML = \`
+          <div class="topic-title">\${topic}</div>
+          <div class="progress-bar-container">
+            <div class="progress-bar" style="width: \${percent}%;"></div>
+          </div>
+          <button onclick="startTopic('\${topic}')">\${completed === total ? 'Review' : 'Start'} \${topic}</button>
+        \`;
+        app.appendChild(card);
+      });
+
+      const resetBtn = document.createElement("button");
+      resetBtn.textContent = "Reset All Progress";
+      resetBtn.className = "reset-button";
+      resetBtn.onclick = resetProgress;
+      app.appendChild(resetBtn);
+    }
+
+    function startTopic(topic) {
+      const progress = getProgress();
+      const current = progress[topic]?.current || 0;
+
+      if (current >= questionBank[topic].length) {
+        progress[topic] = { current: 0, completed: 0 };
+        saveProgress(progress);
+      }
+
+      renderQuestion(topic, current);
+    }
+
+    function tokenize(sentence) {
+      return sentence.match(/\w+('\w+)?|[.,!?;:"]+/g);
+    }
+
+    function renderQuestion(topic, index) {
+      const question = questionBank[topic][index];
+      const tokens = tokenize(question.text);
+
+      app.innerHTML = \`
+        <div class="card">
+          <div class="topic-title">\${topic} - Question \${index + 1} of \${questionBank[topic].length}</div>
+          <div class="sentence" id="sentence"></div>
+          <button onclick="checkAnswer()">Check Answer</button>
+          <div class="feedback" id="feedback"></div>
+        </div>
+      \`;
+
+      const sentenceDiv = document.getElementById("sentence");
+
+      tokens.forEach((token, i) => {
+        const span = document.createElement("span");
+        span.textContent = token;
+        span.className = "word";
+        span.dataset.index = i;
+        span.addEventListener("click", () => {
+          document.querySelectorAll(".word").forEach(el => el.classList.remove("selected"));
+          span.classList.add("selected");
+        });
+        sentenceDiv.appendChild(span);
+        sentenceDiv.append(" ");
+      });
+
+      window.checkAnswer = () => {
+        const selected = document.querySelector(".word.selected");
+        const feedback = document.getElementById("feedback");
+        if (!selected) {
+          feedback.textContent = "Please select a word or punctuation mark.";
+          feedback.style.color = "black";
+          return;
+        }
+
+        const selectedIndex = parseInt(selected.dataset.index);
+        if (selectedIndex === question.incorrectIndex) {
+          feedback.textContent = "✅ Correct!";
+          feedback.style.color = "green";
+
+          setTimeout(() => {
+            const progress = getProgress();
+            if (!progress[topic]) progress[topic] = { current: 0, completed: 0 };
+            progress[topic].current = index + 1;
+            if (index + 1 === questionBank[topic].length) {
+              progress[topic].completed = questionBank[topic].length;
+              saveProgress(progress);
+              confettiLauncher({ spread: 100, origin: { y: 0.4 } });
+              alert("🎉 You've completed the topic!");
+              renderDashboard();
+            } else {
+              saveProgress(progress);
+              renderQuestion(topic, index + 1);
+            }
+          }, 1000);
+        } else {
+          feedback.textContent = "❌ Try again.";
+          feedback.style.color = "red";
+        }
+      };
+    }
+
+    renderDashboard();
+  </script>
+</body>
+</html>
