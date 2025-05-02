@@ -222,7 +222,11 @@
       };
     }
 
-    fetch("questions.json")
+    (function() {
+      const embedded = document.getElementById("questions-json").textContent;
+      questionBank = JSON.parse(embedded);
+      renderDashboard();
+    })()
       .then(res => res.json())
       .then(data => {
         questionBank = data;
@@ -232,6 +236,32 @@
         app.innerHTML = "<p>Error loading questions.json. Please ensure it exists and is valid.</p>";
         console.error(err);
       });
+  </script>
+  <script id="questions-json" type="application/json">
+{
+  "Pronouns": [
+    {
+      "text": "Each of the students have completed their assignments.",
+      "incorrectIndex": 4
+    },
+    {
+      "text": "Everyone should bring their own pencil.",
+      "incorrectIndex": 4
+    }
+  ],
+  "Punctuation": [
+    {
+      "text": "I need milk eggs and bread.",
+      "incorrectIndex": 3
+    }
+  ],
+  "Subject-Verb Agreement": [
+    {
+      "text": "Neither the teacher nor the students was ready for the test.",
+      "incorrectIndex": 7
+    }
+  ]
+}
   </script>
 </body>
 </html>
