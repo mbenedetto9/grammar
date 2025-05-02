@@ -54,6 +54,9 @@
       border-radius: 4px;
       cursor: pointer;
     }
+    .reset-button {
+      background-color: #dc3545;
+    }
     .sentence {
       margin: 1.5rem 0;
       font-size: 1.2rem;
@@ -71,6 +74,13 @@
       margin-top: 1rem;
       font-weight: bold;
     }
+    canvas#confetti-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 999;
+    }
   </style>
 </head>
 <body>
@@ -78,31 +88,15 @@
     <h1>Grammar Practice</h1>
     <p>Select a topic and test your grammar skills!</p>
   </header>
-  <main id="app"></main>
+  <canvas id="confetti-canvas"></canvas>
+  <main id="app">Loading...</main>
 
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
   <script>
-    const questionBank = {
-      "Pronouns": [
-        {
-          text: "Everyone should bring their own pencil.",
-          incorrectIndex: 4
-        }
-      ],
-      "Punctuation": [
-        {
-          text: "I need milk eggs and bread.",
-          incorrectIndex: 3
-        }
-      ],
-      "Subject-Verb Agreement": [
-        {
-          text: "Neither the teacher nor the students was ready for the test.",
-          incorrectIndex: 7
-        }
-      ]
-    };
-
+    let questionBank = {};
     const app = document.getElementById("app");
+    const confettiCanvas = document.getElementById("confetti-canvas");
+    const confettiLauncher = confetti.create(confettiCanvas, { resize: true });
 
     function getProgress() {
       return JSON.parse(localStorage.getItem("grammarProgress") || "{}");
@@ -110,6 +104,13 @@
 
     function saveProgress(progress) {
       localStorage.setItem("grammarProgress", JSON.stringify(progress));
+    }
+
+    function resetProgress() {
+      if (confirm("Are you sure you want to reset all progress?")) {
+        localStorage.removeItem("grammarProgress");
+        renderDashboard();
+      }
     }
 
     function renderDashboard() {
@@ -133,6 +134,12 @@
         \`;
         app.appendChild(card);
       });
+
+      const resetBtn = document.createElement("button");
+      resetBtn.textContent = "Reset All Progress";
+      resetBtn.className = "reset-button";
+      resetBtn.onclick = resetProgress;
+      app.appendChild(resetBtn);
     }
 
     function startTopic(topic) {
@@ -199,6 +206,8 @@
             progress[topic].current = index + 1;
             if (index + 1 === questionBank[topic].length) {
               progress[topic].completed = questionBank[topic].length;
+              saveProgress(progress);
+              confettiLauncher({ spread: 100, origin: { y: 0.4 } });
               alert("🎉 You've completed the topic!");
               renderDashboard();
             } else {
@@ -213,7 +222,16 @@
       };
     }
 
-    renderDashboard();
+    fetch("questions.json")
+      .then(res => res.json())
+      .then(data => {
+        questionBank = data;
+        renderDashboard();
+      })
+      .catch(err => {
+        app.innerHTML = "<p>Error loading questions.json. Please ensure it exists and is valid.</p>";
+        console.error(err);
+      });
   </script>
 </body>
 </html>
