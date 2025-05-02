@@ -91,7 +91,7 @@
   <canvas id="confetti-canvas"></canvas>
   <main id="app">Loading...</main>
 
-  <script id="questions-json" type="application/json">
+  
 {
   "Pronouns": [
     {
@@ -116,11 +116,34 @@
     }
   ]
 }
-  </script>
+  
 
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js">
   <script>
-    let questionBank = JSON.parse(document.getElementById("questions-json").textContent);
+    let questionBank = {
+  "Pronouns": [
+    {
+      "text": "Each of the students have completed their assignments.",
+      "incorrectIndex": 4
+    },
+    {
+      "text": "Everyone should bring their own pencil.",
+      "incorrectIndex": 4
+    }
+  ],
+  "Punctuation": [
+    {
+      "text": "I need milk eggs and bread.",
+      "incorrectIndex": 3
+    }
+  ],
+  "Subject-Verb Agreement": [
+    {
+      "text": "Neither the teacher nor the students was ready for the test.",
+      "incorrectIndex": 7
+    }
+  ]
+};
     const app = document.getElementById("app");
     const confettiCanvas = document.getElementById("confetti-canvas");
     const confettiLauncher = confetti.create(confettiCanvas, { resize: true });
@@ -250,6 +273,6 @@
     }
 
     renderDashboard();
-  </script>
+  
 </body>
 </html>
