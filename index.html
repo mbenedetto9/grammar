@@ -3,256 +3,151 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Grammar Practice</title>
+  <title>Grammar Practice - Student View</title>
   <style>
     body {
       font-family: sans-serif;
       margin: 20px;
-    }
-    .sentence {
-      line-height: 2;
-      cursor: pointer;
+      max-width: 600px;
     }
     .word {
-      padding: 4px;
       display: inline-block;
+      padding: 4px;
+      margin: 1px;
+      cursor: pointer;
     }
     .selected {
       background-color: #ffeb3b;
     }
+    .sentence {
+      font-size: 1.25em;
+      margin: 20px 0;
+    }
     #feedback {
-      margin-top: 20px;
+      margin-top: 15px;
+      font-weight: bold;
     }
     button {
-      margin-top: 10px;
-    }
-    #topicSelector, #questionSelector {
-      margin-bottom: 10px;
-    }
-    #editor {
-      margin-top: 40px;
-      border-top: 1px solid #ccc;
-      padding-top: 20px;
-    }
-    textarea {
-      width: 100%;
-      height: 60px;
-    }
-    label, input, select {
-      display: block;
-      margin: 5px 0;
-    }
-    .tools {
       margin-top: 20px;
-    }
-    #tokenDebug, #tokenPreview {
-      font-family: monospace;
-      margin-top: 10px;
-      color: #555;
-      white-space: pre-wrap;
     }
   </style>
 </head>
 <body>
-  <h2>Click the word or punctuation you think is incorrect</h2>
-  <label for="topicSelector">Choose a topic:</label>
-  <select id="topicSelector"></select>
-  <label for="questionSelector">Choose a question:</label>
-  <select id="questionSelector"></select>
+  <h1>Grammar Practice</h1>
+  <label for="topicSelect">Choose a topic:</label>
+  <select id="topicSelect"></select>
 
-  <div id="sentence" class="sentence"></div>
-  <button onclick="checkAnswer()">Check Answer</button>
+  <div id="sentenceContainer" class="sentence"></div>
+  <button id="checkBtn">Check Answer</button>
   <div id="feedback"></div>
-  <pre id="tokenDebug"></pre>
-
-  <div id="editor">
-    <h3>Add a New Question</h3>
-    <label for="newTopic">Topic:</label>
-    <input type="text" id="newTopic">
-    <label for="newText">Sentence:</label>
-    <textarea id="newText" oninput="previewTokens()"></textarea>
-    <label for="newIndex">Index of Incorrect Word (starting from 0):</label>
-    <input type="number" id="newIndex" />
-    <pre id="tokenPreview"></pre>
-    <button onclick="addQuestion()">Add Question</button>
-
-    <div class="tools">
-      <h3>Import / Export Questions</h3>
-      <input type="file" id="importFile" accept="application/json" />
-      <button onclick="importQuestions()">Import Questions</button>
-      <button onclick="exportQuestions()">Export Questions</button>
-    </div>
-  </div>
+  <button id="nextBtn" style="display:none;">Next Question</button>
 
   <script>
-    let questions = [
-      {
-        topic: "Pronouns",
-        text: "Everyone should bring their own pencil.",
-        incorrectIndex: 4
-      },
-      {
-        topic: "Punctuation",
-        text: "I need milk eggs and bread.",
-        incorrectIndex: 3
-      },
-      {
-        topic: "Subject-Verb Agreement",
-        text: "Neither the teacher nor the students was ready for the test.",
-        incorrectIndex: 7
-      }
-    ];
+    const questionBank = {
+      "Pronouns": [
+        {
+          text: "Everyone should bring their own pencil.",
+          incorrectIndex: 4
+        }
+      ],
+      "Punctuation": [
+        {
+          text: "I need milk eggs and bread.",
+          incorrectIndex: 3
+        }
+      ],
+      "Subject-Verb Agreement": [
+        {
+          text: "Neither the teacher nor the students was ready for the test.",
+          incorrectIndex: 7
+        }
+      ]
+    };
 
-    const topicSelector = document.getElementById("topicSelector");
-    const questionSelector = document.getElementById("questionSelector");
-    const sentenceDiv = document.getElementById("sentence");
+    let currentTopic = "";
+    let currentIndex = 0;
+
+    const topicSelect = document.getElementById("topicSelect");
+    const sentenceContainer = document.getElementById("sentenceContainer");
     const feedbackDiv = document.getElementById("feedback");
-    const tokenDebug = document.getElementById("tokenDebug");
-    const tokenPreview = document.getElementById("tokenPreview");
+    const checkBtn = document.getElementById("checkBtn");
+    const nextBtn = document.getElementById("nextBtn");
+
+    Object.keys(questionBank).forEach(topic => {
+      const option = document.createElement("option");
+      option.value = topic;
+      option.textContent = topic;
+      topicSelect.appendChild(option);
+    });
+
+    topicSelect.addEventListener("change", () => {
+      currentTopic = topicSelect.value;
+      currentIndex = 0;
+      loadQuestion();
+    });
 
     function tokenize(sentence) {
       return sentence.match(/\w+('\w+)?|[.,!?;:"]+/g);
     }
 
-    function getTopics() {
-      const unique = [...new Set(questions.map(q => q.topic))];
-      return unique.sort();
-    }
-
-    function populateTopics() {
-      topicSelector.innerHTML = "";
-      getTopics().forEach(topic => {
-        const option = document.createElement("option");
-        option.value = topic;
-        option.textContent = topic;
-        topicSelector.appendChild(option);
-      });
-      loadQuestionsForTopic(topicSelector.value);
-    }
-
-    function loadQuestionsForTopic(topic) {
-      questionSelector.innerHTML = "";
-      const filtered = questions.filter(q => q.topic === topic);
-      filtered.forEach((q, idx) => {
-        const option = document.createElement("option");
-        option.value = idx;
-        option.textContent = `Question ${idx + 1}`;
-        questionSelector.appendChild(option);
-      });
-      loadQuestion(topic, 0);
-    }
-
-    function loadQuestion(topic, index) {
-      sentenceDiv.innerHTML = "";
+    function loadQuestion() {
       feedbackDiv.textContent = "";
-      tokenDebug.textContent = "";
+      nextBtn.style.display = "none";
+      sentenceContainer.innerHTML = "";
 
-      const filtered = questions.filter(q => q.topic === topic);
-      const tokens = tokenize(filtered[index].text);
+      const question = questionBank[currentTopic][currentIndex];
+      const tokens = tokenize(question.text);
 
-      tokens.forEach((token, i) => {
+      tokens.forEach((token, idx) => {
         const span = document.createElement("span");
         span.textContent = token;
-        span.classList.add("word");
-        span.dataset.index = i;
+        span.className = "word";
+        span.dataset.index = idx;
         span.addEventListener("click", () => {
-          document.querySelectorAll(".word").forEach(el => el.classList.remove("selected"));
+          document.querySelectorAll(".word").forEach(w => w.classList.remove("selected"));
           span.classList.add("selected");
         });
-        sentenceDiv.appendChild(span);
-        sentenceDiv.append(" ");
-        tokenDebug.textContent += `${i}: ${token}\n`;
+        sentenceContainer.appendChild(span);
+        sentenceContainer.append(" ");
       });
     }
 
-    topicSelector.addEventListener("change", () => populateQuestions(topicSelector.value));
-    questionSelector.addEventListener("change", () => loadQuestion(topicSelector.value, parseInt(questionSelector.value)));
-
-    function previewTokens() {
-      const text = document.getElementById("newText").value.trim();
-      const tokens = tokenize(text);
-      tokenPreview.textContent = tokens.map((t, i) => `${i}: ${t}`).join("\n");
-    }
-
-    function checkAnswer() {
+    checkBtn.addEventListener("click", () => {
       const selected = document.querySelector(".word.selected");
       if (!selected) {
         feedbackDiv.textContent = "Please select a word or punctuation mark.";
         return;
       }
-      const topic = topicSelector.value;
-      const index = parseInt(questionSelector.value);
-      const filtered = questions.filter(q => q.topic === topic);
-      const question = filtered[index];
+
       const selectedIndex = parseInt(selected.dataset.index);
-      if (selectedIndex === question.incorrectIndex) {
-        feedbackDiv.textContent = "Correct! You found the error.";
+      const correctIndex = questionBank[currentTopic][currentIndex].incorrectIndex;
+
+      if (selectedIndex === correctIndex) {
+        feedbackDiv.textContent = "✅ Correct!";
         feedbackDiv.style.color = "green";
+        nextBtn.style.display = "inline-block";
       } else {
-        feedbackDiv.textContent = "Oops! That's not the error. Try again.";
+        feedbackDiv.textContent = "❌ Try again.";
         feedbackDiv.style.color = "red";
       }
-    }
+    });
 
-    function addQuestion() {
-      const text = document.getElementById("newText").value.trim();
-      const index = parseInt(document.getElementById("newIndex").value);
-      const topic = document.getElementById("newTopic").value.trim();
-      const words = tokenize(text);
-
-      if (!text || isNaN(index) || !topic) {
-        alert("Please provide topic, sentence, and index.");
-        return;
+    nextBtn.addEventListener("click", () => {
+      currentIndex++;
+      const questions = questionBank[currentTopic];
+      if (currentIndex < questions.length) {
+        loadQuestion();
+      } else {
+        sentenceContainer.innerHTML = "🎉 You've completed all questions in this topic!";
+        checkBtn.style.display = "none";
+        nextBtn.style.display = "none";
+        feedbackDiv.textContent = "";
       }
-      if (index < 0 || index >= words.length) {
-        alert("Index is out of bounds based on the number of words/punctuation in the sentence.");
-        return;
-      }
-      questions.push({ topic, text, incorrectIndex: index });
-      populateTopics();
-      topicSelector.value = topic;
-      loadQuestionsForTopic(topic);
-      document.getElementById("newText").value = "";
-      document.getElementById("newIndex").value = "";
-      document.getElementById("newTopic").value = "";
-      tokenPreview.textContent = "";
-    }
+    });
 
-    function exportQuestions() {
-      const blob = new Blob([JSON.stringify(questions, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "grammar-questions.json";
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    function importQuestions() {
-      const fileInput = document.getElementById("importFile");
-      const file = fileInput.files[0];
-      if (!file) {
-        alert("Please select a file first.");
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const imported = JSON.parse(event.target.result);
-          if (Array.isArray(imported)) {
-            questions = imported;
-            populateTopics();
-          } else {
-            alert("Invalid format: not an array of questions.");
-          }
-        } catch (e) {
-          alert("Failed to parse the JSON file.");
-        }
-      };
-      reader.readAsText(file);
-    }
-
-    populateTopics();
+    // Initialize first topic
+    currentTopic = topicSelect.value = Object.keys(questionBank)[0];
+    loadQuestion();
   </script>
 </body>
 </html>
