@@ -2,45 +2,83 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Grammar Practice - Student View</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Grammar Practice - Student</title>
   <style>
     body {
-      font-family: sans-serif;
-      margin: 20px;
-      max-width: 600px;
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f8f9fa;
+    }
+    header {
+      background: #343a40;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+    }
+    main {
+      padding: 1rem;
+      max-width: 700px;
+      margin: auto;
+    }
+    .card {
+      background: white;
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .topic-title {
+      font-weight: bold;
+      font-size: 1.2rem;
+    }
+    .progress-bar-container {
+      background: #e9ecef;
+      border-radius: 5px;
+      overflow: hidden;
+      margin-top: 0.5rem;
+    }
+    .progress-bar {
+      height: 10px;
+      background: #28a745;
+      transition: width 0.3s ease;
+    }
+    button {
+      margin-top: 1rem;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .sentence {
+      margin: 1.5rem 0;
+      font-size: 1.2rem;
     }
     .word {
-      display: inline-block;
       padding: 4px;
       margin: 1px;
       cursor: pointer;
+      display: inline-block;
     }
     .selected {
-      background-color: #ffeb3b;
+      background: #ffc107;
     }
-    .sentence {
-      font-size: 1.25em;
-      margin: 20px 0;
-    }
-    #feedback {
-      margin-top: 15px;
+    .feedback {
+      margin-top: 1rem;
       font-weight: bold;
-    }
-    button {
-      margin-top: 20px;
     }
   </style>
 </head>
 <body>
-  <h1>Grammar Practice</h1>
-  <label for="topicSelect">Choose a topic:</label>
-  <select id="topicSelect"></select>
-
-  <div id="sentenceContainer" class="sentence"></div>
-  <button id="checkBtn">Check Answer</button>
-  <div id="feedback"></div>
-  <button id="nextBtn" style="display:none;">Next Question</button>
+  <header>
+    <h1>Grammar Practice</h1>
+    <p>Select a topic and test your grammar skills!</p>
+  </header>
+  <main id="app"></main>
 
   <script>
     const questionBank = {
@@ -64,90 +102,118 @@
       ]
     };
 
-    let currentTopic = "";
-    let currentIndex = 0;
+    const app = document.getElementById("app");
 
-    const topicSelect = document.getElementById("topicSelect");
-    const sentenceContainer = document.getElementById("sentenceContainer");
-    const feedbackDiv = document.getElementById("feedback");
-    const checkBtn = document.getElementById("checkBtn");
-    const nextBtn = document.getElementById("nextBtn");
+    function getProgress() {
+      return JSON.parse(localStorage.getItem("grammarProgress") || "{}");
+    }
 
-    Object.keys(questionBank).forEach(topic => {
-      const option = document.createElement("option");
-      option.value = topic;
-      option.textContent = topic;
-      topicSelect.appendChild(option);
-    });
+    function saveProgress(progress) {
+      localStorage.setItem("grammarProgress", JSON.stringify(progress));
+    }
 
-    topicSelect.addEventListener("change", () => {
-      currentTopic = topicSelect.value;
-      currentIndex = 0;
-      loadQuestion();
-    });
+    function renderDashboard() {
+      const progress = getProgress();
+      app.innerHTML = "<h2>Your Progress</h2>";
+
+      Object.keys(questionBank).forEach(topic => {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        const completed = progress[topic]?.completed || 0;
+        const total = questionBank[topic].length;
+        const percent = Math.round((completed / total) * 100);
+
+        card.innerHTML = \`
+          <div class="topic-title">\${topic}</div>
+          <div class="progress-bar-container">
+            <div class="progress-bar" style="width: \${percent}%;"></div>
+          </div>
+          <button onclick="startTopic('\${topic}')">\${completed === total ? 'Review' : 'Start'} \${topic}</button>
+        \`;
+        app.appendChild(card);
+      });
+    }
+
+    function startTopic(topic) {
+      const progress = getProgress();
+      const current = progress[topic]?.current || 0;
+
+      if (current >= questionBank[topic].length) {
+        progress[topic] = { current: 0, completed: 0 };
+        saveProgress(progress);
+      }
+
+      renderQuestion(topic, current);
+    }
 
     function tokenize(sentence) {
       return sentence.match(/\w+('\w+)?|[.,!?;:"]+/g);
     }
 
-    function loadQuestion() {
-      feedbackDiv.textContent = "";
-      nextBtn.style.display = "none";
-      sentenceContainer.innerHTML = "";
-
-      const question = questionBank[currentTopic][currentIndex];
+    function renderQuestion(topic, index) {
+      const question = questionBank[topic][index];
       const tokens = tokenize(question.text);
 
-      tokens.forEach((token, idx) => {
+      app.innerHTML = \`
+        <div class="card">
+          <div class="topic-title">\${topic} - Question \${index + 1} of \${questionBank[topic].length}</div>
+          <div class="sentence" id="sentence"></div>
+          <button onclick="checkAnswer()">Check Answer</button>
+          <div class="feedback" id="feedback"></div>
+        </div>
+      \`;
+
+      const sentenceDiv = document.getElementById("sentence");
+
+      tokens.forEach((token, i) => {
         const span = document.createElement("span");
         span.textContent = token;
         span.className = "word";
-        span.dataset.index = idx;
+        span.dataset.index = i;
         span.addEventListener("click", () => {
-          document.querySelectorAll(".word").forEach(w => w.classList.remove("selected"));
+          document.querySelectorAll(".word").forEach(el => el.classList.remove("selected"));
           span.classList.add("selected");
         });
-        sentenceContainer.appendChild(span);
-        sentenceContainer.append(" ");
+        sentenceDiv.appendChild(span);
+        sentenceDiv.append(" ");
       });
+
+      window.checkAnswer = () => {
+        const selected = document.querySelector(".word.selected");
+        const feedback = document.getElementById("feedback");
+        if (!selected) {
+          feedback.textContent = "Please select a word or punctuation mark.";
+          feedback.style.color = "black";
+          return;
+        }
+
+        const selectedIndex = parseInt(selected.dataset.index);
+        if (selectedIndex === question.incorrectIndex) {
+          feedback.textContent = "✅ Correct!";
+          feedback.style.color = "green";
+
+          setTimeout(() => {
+            const progress = getProgress();
+            if (!progress[topic]) progress[topic] = { current: 0, completed: 0 };
+            progress[topic].current = index + 1;
+            if (index + 1 === questionBank[topic].length) {
+              progress[topic].completed = questionBank[topic].length;
+              alert("🎉 You've completed the topic!");
+              renderDashboard();
+            } else {
+              saveProgress(progress);
+              renderQuestion(topic, index + 1);
+            }
+          }, 1000);
+        } else {
+          feedback.textContent = "❌ Try again.";
+          feedback.style.color = "red";
+        }
+      };
     }
 
-    checkBtn.addEventListener("click", () => {
-      const selected = document.querySelector(".word.selected");
-      if (!selected) {
-        feedbackDiv.textContent = "Please select a word or punctuation mark.";
-        return;
-      }
-
-      const selectedIndex = parseInt(selected.dataset.index);
-      const correctIndex = questionBank[currentTopic][currentIndex].incorrectIndex;
-
-      if (selectedIndex === correctIndex) {
-        feedbackDiv.textContent = "✅ Correct!";
-        feedbackDiv.style.color = "green";
-        nextBtn.style.display = "inline-block";
-      } else {
-        feedbackDiv.textContent = "❌ Try again.";
-        feedbackDiv.style.color = "red";
-      }
-    });
-
-    nextBtn.addEventListener("click", () => {
-      currentIndex++;
-      const questions = questionBank[currentTopic];
-      if (currentIndex < questions.length) {
-        loadQuestion();
-      } else {
-        sentenceContainer.innerHTML = "🎉 You've completed all questions in this topic!";
-        checkBtn.style.display = "none";
-        nextBtn.style.display = "none";
-        feedbackDiv.textContent = "";
-      }
-    });
-
-    // Initialize first topic
-    currentTopic = topicSelect.value = Object.keys(questionBank)[0];
-    loadQuestion();
+    renderDashboard();
   </script>
 </body>
 </html>
